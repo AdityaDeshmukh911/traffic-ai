@@ -1,0 +1,21 @@
+{
+  "name": "traffic-ai-simulator",
+  "version": "1.0.0",
+  "description": "TRAFFIC AI — Smart Traffic Signal Simulator with Adaptive Scoring, Dijkstra Emergency Routing, Incident Management, and Vercel Serverless Backend.",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "traffic-simulation",
+    "smart-signals",
+    "dijkstra",
+    "vercel",
+    "prototyping-lab"
+  ],
+  "license": "MIT"
+}

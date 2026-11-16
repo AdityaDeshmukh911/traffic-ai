@@ -1,0 +1,1899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TRAFFIC AI — Smart Traffic Signal Simulator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace']
+          },
+          colors: {
+            paper: '#F6F4EF',
+            card: '#FFFFFF',
+            inset: '#F1EFE9',
+            borderline: '#E4E0D8',
+            ink: '#181A1F',
+            slateink: '#525866',
+            teal: {
+              DEFAULT: '#0F766E',
+              dark: '#115E59',
+              soft: '#E6F4F1'
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      background-color: #F6F4EF;
+      color: #181A1F;
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    }
+    .card-surface {
+      background-color: #FFFFFF;
+      border: 1px solid #E4E0D8;
+      box-shadow: 0 1px 2px rgba(24, 26, 31, 0.04);
+      border-radius: 12px;
+    }
+    .nav-item {
+      transition: background-color 140ms ease, color 140ms ease;
+    }
+    .nav-item.active {
+      background-color: #E6F4F1;
+      color: #0F766E;
+      font-weight: 600;
+      box-shadow: inset 3px 0 0 #0F766E;
+    }
+    .lamp {
+      width: 12px;
+      height: 12px;
+      border-radius: 9999px;
+      border: 1px solid rgba(0,0,0,0.12);
+    }
+    .lamp-lg {
+      width: 18px;
+      height: 18px;
+      border-radius: 9999px;
+      border: 1px solid rgba(0,0,0,0.14);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; animation: none !important; }
+    }
+  </style>
+</head>
+<body class="min-h-screen antialiased">
+
+  <!-- LOGIN VIEW -->
+  <div id="loginView" class="min-h-screen flex items-center justify-center p-4 sm:p-6">
+    <div class="w-full max-w-4xl grid grid-cols-1 md:grid-cols-12 card-surface overflow-hidden">
+      <div class="md:col-span-5 bg-[#FAF9F6] border-b md:border-b-0 md:border-r border-[#E4E0D8] p-7 sm:p-8 flex flex-col justify-between">
+        <div>
+          <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-[#E6F4F1] text-[#0F766E] text-xs font-semibold tracking-wide mb-5">
+            SIMULATED DATA · LEARNING DEMO
+          </div>
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-10 h-10 rounded-xl bg-[#0F766E] text-white flex items-center justify-center font-bold text-lg">
+              T
+            </div>
+            <div>
+              <h1 class="text-xl font-bold tracking-tight text-ink">TRAFFIC AI</h1>
+              <p class="text-xs text-slateink">Smart Traffic Signal Simulator</p>
+            </div>
+          </div>
+          <p class="text-sm text-slateink leading-relaxed mt-3">
+            Explore how adaptive traffic signals respond to real-time queues, clear corridors for ambulances using Dijkstra's algorithm, and handle road incidents — all on a repeatable 3×3 city grid.
+          </p>
+        </div>
+        <div class="mt-8 pt-5 border-t border-[#E4E0D8] text-xs text-slateink space-y-1.5">
+          <div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-[#15803D]"></span> Safe: Yellow (3 s) &amp; All-Red (2 s) every change</div>
+          <div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-[#0F766E]"></span> Fair: No road waits more than 40 s</div>
+          <div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-[#0284C7]"></span> Measurable: Same seed = identical traffic</div>
+        </div>
+      </div>
+
+      <div class="md:col-span-7 p-7 sm:p-9 flex flex-col justify-center">
+        <h2 class="text-lg font-bold text-ink">Enter the Control Room</h2>
+        <p class="text-sm text-slateink mt-1">Sign in with a demo profile to start running simulations.</p>
+
+        <form id="loginForm" class="mt-6 space-y-4">
+          <div>
+            <label for="operatorName" class="block text-xs font-semibold uppercase tracking-wider text-slateink mb-1.5">Operator Name</label>
+            <input id="operatorName" type="text" value="Aditya Deshmukh" placeholder="Enter your name"
+              class="w-full px-3.5 py-2.5 rounded-lg border border-[#D8D3C8] bg-white text-sm text-ink focus:outline-none focus:ring-2 focus:ring-[#0F766E]/30 focus:border-[#0F766E]" />
+          </div>
+          <div>
+            <label for="operatorRole" class="block text-xs font-semibold uppercase tracking-wider text-slateink mb-1.5">Role</label>
+            <select id="operatorRole"
+              class="w-full px-3.5 py-2.5 rounded-lg border border-[#D8D3C8] bg-white text-sm text-ink focus:outline-none focus:ring-2 focus:ring-[#0F766E]/30 focus:border-[#0F766E]">
+              <option value="Operator">Traffic Operator (Full Controls)</option>
+              <option value="Evaluator">Evaluator / Reviewer</option>
+            </select>
+          </div>
+          <div class="pt-2 flex flex-col sm:flex-row gap-2.5">
+            <button type="submit"
+              class="flex-1 px-4 py-2.5 rounded-lg bg-[#0F766E] hover:bg-[#115E59] text-white text-sm font-semibold transition-colors">
+              Sign In &amp; Open Dashboard
+            </button>
+            <button type="button" id="demoGuestBtn"
+              class="px-4 py-2.5 rounded-lg border border-[#D8D3C8] bg-[#FAF9F6] hover:bg-[#EFECE4] text-ink text-sm font-medium transition-colors">
+              Continue as Demo Guest
+            </button>
+          </div>
+        </form>
+
+        <p class="mt-5 text-xs text-slateink bg-[#FAF9F6] border border-[#E4E0D8] rounded-lg px-3.5 py-2.5">
+          <strong>Honesty note:</strong> This is a demo session for an educational simulator. No real accounts, passwords, or personal data are stored.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP SHELL -->
+  <div id="appShell" class="hidden min-h-screen flex flex-col lg:flex-row">
+    <!-- Mobile Top Header -->
+    <div class="lg:hidden flex items-center justify-between px-4 py-3 bg-[#FAF9F6] border-b border-[#E4E0D8]">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg bg-[#0F766E] text-white flex items-center justify-center font-bold text-sm">T</div>
+        <span class="font-bold text-ink text-sm">TRAFFIC AI</span>
+      </div>
+      <button id="mobileMenuBtn" class="px-3 py-1.5 rounded-lg border border-[#D8D3C8] bg-white text-xs font-semibold text-ink">
+        Menu
+      </button>
+    </div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar" class="hidden lg:flex lg:w-64 lg:flex-col lg:shrink-0 bg-[#FAF9F6] border-r border-[#E4E0D8] justify-between">
+      <div>
+        <div class="p-5 border-b border-[#E4E0D8] hidden lg:flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-[#0F766E] text-white flex items-center justify-center font-bold">T</div>
+          <div>
+            <div class="font-bold text-ink leading-tight">TRAFFIC AI</div>
+            <div class="text-[11px] text-slateink">3×3 Grid Simulator</div>
+          </div>
+        </div>
+
+        <nav class="p-3 space-y-1" aria-label="Primary Navigation">
+          <button data-page="dashboard" class="nav-item active w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm text-left">
+            <span class="w-2 h-2 rounded-full bg-current opacity-70"></span> Dashboard
+          </button>
+          <button data-page="tryit" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm text-left text-slateink hover:bg-[#EFECE4]">
+            <span class="w-2 h-2 rounded-full bg-current opacity-70"></span> Try It (Timer vs Smart)
+          </button>
+          <button data-page="signals" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm text-left text-slateink hover:bg-[#EFECE4]">
+            <span class="w-2 h-2 rounded-full bg-current opacity-70"></span> Smart Signals
+          </button>
+          <button data-page="ambulance" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm text-left text-slateink hover:bg-[#EFECE4]">
+            <span class="w-2 h-2 rounded-full bg-current opacity-70"></span> Ambulance Route
+          </button>
+          <button data-page="incidents" class="nav-item w-full flex items-center justify-between px-3.5 py-2.5 rounded-lg text-sm text-left text-slateink hover:bg-[#EFECE4]">
+            <span class="flex items-center gap-3"><span class="w-2 h-2 rounded-full bg-current opacity-70"></span> Incidents</span>
+            <span id="sidebarIncidentBadge" class="px-1.5 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-[#FEF2F2] text-[#B91C1C]">1</span>
+          </button>
+          <button data-page="charts" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm text-left text-slateink hover:bg-[#EFECE4]">
+            <span class="w-2 h-2 rounded-full bg-current opacity-70"></span> Charts &amp; Report
+          </button>
+          <button data-page="howitworks" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-sm text-left text-slateink hover:bg-[#EFECE4]">
+            <span class="w-2 h-2 rounded-full bg-current opacity-70"></span> How It Works
+          </button>
+        </nav>
+      </div>
+
+      <div class="p-4 border-t border-[#E4E0D8] space-y-3">
+        <div class="text-xs">
+          <div class="text-slateink">Signed in as</div>
+          <div id="userDisplay" class="font-semibold text-ink truncate">Demo Operator</div>
+          <div id="backendBadge" class="mt-1 inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-[#E6F4F1] text-[#0F766E] text-[11px] font-medium">
+            Engine Ready
+          </div>
+        </div>
+        <button id="signOutBtn" class="w-full px-3 py-1.5 rounded-lg border border-[#D8D3C8] bg-white hover:bg-[#EFECE4] text-xs font-medium text-ink">
+          Switch / Sign Out
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <div class="flex-1 flex flex-col min-w-0">
+      <!-- Global Control Bar -->
+      <header class="bg-white border-b border-[#E4E0D8] px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20">
+        <div class="flex flex-wrap items-center gap-2.5">
+          <h1 id="pageTitle" class="text-lg sm:text-xl font-bold text-ink">Dashboard</h1>
+          <span class="px-2.5 py-0.5 rounded-full bg-[#F1EFE9] border border-[#E4E0D8] text-[11px] font-semibold text-slateink tracking-wide">
+            SIMULATED DATA · LEARNING DEMO
+          </span>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#F6F4EF] border border-[#E4E0D8] text-xs font-mono">
+            <span class="text-slateink">TIME</span>
+            <span id="simClock" class="font-semibold text-ink">00:00</span>
+          </div>
+
+          <select id="globalScenario" aria-label="Traffic Scenario"
+            class="px-2.5 py-1.5 rounded-lg border border-[#D8D3C8] bg-white text-xs font-medium text-ink focus:outline-none focus:border-[#0F766E]">
+            <option value="quiet">Quiet roads</option>
+            <option value="normal" selected>Normal day</option>
+            <option value="rush">Rush hour</option>
+            <option value="jam">Heavy jam</option>
+          </select>
+
+          <select id="globalController" aria-label="Signal Controller Mode"
+            class="px-2.5 py-1.5 rounded-lg border border-[#D8D3C8] bg-white text-xs font-medium text-ink focus:outline-none focus:border-[#0F766E]">
+            <option value="adaptive" selected>Smart Signals (Adaptive)</option>
+            <option value="fixed">Timer Signals (20s/20s)</option>
+          </select>
+
+          <select id="simSpeed" aria-label="Simulation Speed"
+            class="px-2 py-1.5 rounded-lg border border-[#D8D3C8] bg-white text-xs font-mono font-medium text-ink">
+            <option value="1" selected>1×</option>
+            <option value="2">2×</option>
+            <option value="5">5×</option>
+          </select>
+
+          <button id="playPauseBtn" class="px-3.5 py-1.5 rounded-lg bg-[#0F766E] hover:bg-[#115E59] text-white text-xs font-semibold">
+            Pause
+          </button>
+          <button id="stepBtn" class="px-3 py-1.5 rounded-lg border border-[#D8D3C8] bg-white hover:bg-[#F6F4EF] text-xs font-semibold text-ink">
+            Step +1s
+          </button>
+          <button id="resetBtn" class="px-3 py-1.5 rounded-lg border border-[#D8D3C8] bg-white hover:bg-[#F6F4EF] text-xs font-semibold text-ink">
+            Reset
+          </button>
+        </div>
+      </header>
+
+      <!-- Plain-English Help Strip -->
+      <div class="px-4 sm:px-6 pt-4">
+        <div class="bg-[#E6F4F1]/70 border border-[#BFE3DA] rounded-xl px-4 py-2.5 flex items-start gap-2.5 text-xs sm:text-sm text-[#134E4A]">
+          <span class="font-bold shrink-0">What am I looking at?</span>
+          <span id="helpStripText">A live 3×3 city grid of nine traffic junctions. Click any junction to inspect its queues and signal timing.</span>
+        </div>
+      </div>
+
+      <!-- PAGE CONTAINER -->
+      <main class="flex-1 p-4 sm:p-6 space-y-6">
+
+        <!-- 1. DASHBOARD PAGE -->
+        <section id="page-dashboard" class="space-y-6">
+          <!-- 6 Summary Cards -->
+          <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3.5">
+            <div class="card-surface p-4">
+              <div class="text-xs font-medium text-slateink">Cars waiting</div>
+              <div id="kpiQueue" class="text-2xl font-bold font-mono text-ink mt-1">0</div>
+              <div class="text-[11px] text-slateink mt-1">Total queued across 9 junctions</div>
+            </div>
+            <div class="card-surface p-4">
+              <div class="text-xs font-medium text-slateink">Avg wait</div>
+              <div id="kpiWait" class="text-2xl font-bold font-mono text-ink mt-1">0 s</div>
+              <div class="text-[11px] text-slateink mt-1">Estimated wait per vehicle</div>
+            </div>
+            <div class="card-surface p-4">
+              <div class="text-xs font-medium text-slateink">Avg speed</div>
+              <div id="kpiSpeed" class="text-2xl font-bold font-mono text-ink mt-1">42 km/h</div>
+              <div class="text-[11px] text-slateink mt-1">Corridor flow speed estimate</div>
+            </div>
+            <div class="card-surface p-4">
+              <div class="text-xs font-medium text-slateink">Throughput</div>
+              <div id="kpiThroughput" class="text-2xl font-bold font-mono text-ink mt-1">0</div>
+              <div class="text-[11px] text-slateink mt-1">Vehicles cleared on green</div>
+            </div>
+            <div class="card-surface p-4">
+              <div class="text-xs font-medium text-slateink">Active incidents</div>
+              <div id="kpiIncidents" class="text-2xl font-bold font-mono text-ink mt-1">1</div>
+              <div class="text-[11px] text-slateink mt-1">Events reducing road capacity</div>
+            </div>
+            <div class="card-surface p-4">
+              <div class="text-xs font-medium text-slateink">Network status</div>
+              <div class="mt-1.5"><span id="kpiStatusBadge" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#ECFDF5] text-[#15803D] border border-[#BBF7D0]">Smooth</span></div>
+              <div class="text-[11px] text-slateink mt-1.5">Overall grid congestion level</div>
+            </div>
+          </div>
+
+          <!-- Map + Selected Junction Side by Side -->
+          <div class="grid grid-cols-1 xl:grid-cols-12 gap-5">
+            <div class="xl:col-span-7 card-surface p-5">
+              <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                <div>
+                  <h2 class="text-base font-bold text-ink">3×3 City Junction Map</h2>
+                  <p class="text-xs text-slateink">400 m between junctions · Click a junction to inspect</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2 text-[11px] font-medium">
+                  <span class="px-2 py-0.5 rounded bg-[#ECFDF5] text-[#15803D] border border-[#BBF7D0]">Smooth</span>
+                  <span class="px-2 py-0.5 rounded bg-[#FFFBEB] text-[#B45309] border border-[#FDE68A]">Busy</span>
+                  <span class="px-2 py-0.5 rounded bg-[#FEF2F2] text-[#B91C1C] border border-[#FECACA]">Heavy</span>
+                  <span class="px-2 py-0.5 rounded bg-[#FAF5FF] text-[#7E22CE] border border-[#E9D5FF]">Jammed</span>
+                </div>
+              </div>
+              <div id="dashboardMap" class="w-full overflow-x-auto"></div>
+            </div>
+
+            <div class="xl:col-span-5 card-surface p-5 flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between gap-2 mb-4">
+                  <div>
+                    <h2 id="selectedJuncTitle" class="text-base font-bold text-ink">Junction B2</h2>
+                    <p id="selectedJuncSub" class="text-xs text-slateink">Central corridor · 100% road capacity</p>
+                  </div>
+                  <span id="selectedJuncBadge" class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#ECFDF5] text-[#15803D] border border-[#BBF7D0]">Smooth</span>
+                </div>
+
+                <div class="bg-[#F6F4EF] border border-[#E4E0D8] rounded-xl p-4 space-y-3">
+                  <div class="flex items-center justify-between text-sm">
+                    <span class="text-slateink font-medium">Current Green Direction</span>
+                    <span id="selectedPhaseLabel" class="font-mono font-bold text-[#0F766E]">East–West · GREEN (8 s)</span>
+                  </div>
+                  <div class="space-y-2">
+                    <div>
+                      <div class="flex justify-between text-xs mb-1">
+                        <span class="font-medium text-ink">North–South Queue</span>
+                        <span id="selectedQueueNS" class="font-mono font-semibold">0 cars</span>
+                      </div>
+                      <div class="h-2.5 rounded-full bg-[#E4E0D8] overflow-hidden">
+                        <div id="selectedBarNS" class="h-full bg-[#0F766E] transition-all" style="width: 20%"></div>
+                      </div>
+                    </div>
+                    <div>
+                      <div class="flex justify-between text-xs mb-1">
+                        <span class="font-medium text-ink">East–West Queue</span>
+                        <span id="selectedQueueEW" class="font-mono font-semibold">0 cars</span>
+                      </div>
+                      <div class="h-2.5 rounded-full bg-[#E4E0D8] overflow-hidden">
+                        <div id="selectedBarEW" class="h-full bg-[#D97706] transition-all" style="width: 35%"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mt-4 p-3.5 rounded-xl border border-[#E4E0D8] bg-white">
+                  <div class="text-xs font-semibold text-slateink uppercase tracking-wider mb-1">Signal Decision</div>
+                  <p id="selectedReason" class="text-sm text-ink leading-relaxed">Keeping current green phase.</p>
+                </div>
+              </div>
+
+              <div class="mt-4 pt-3 border-t border-[#E4E0D8] flex items-center justify-between">
+                <span class="text-xs text-slateink">Want to inspect the live lamps?</span>
+                <button onclick="switchPage('signals')" class="text-xs font-semibold text-[#0F766E] hover:underline">
+                  Open in Smart Signals →
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Busiest Junctions & Event Feed -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            <div class="lg:col-span-5 card-surface p-5">
+              <h2 class="text-base font-bold text-ink mb-3">Busiest Junctions</h2>
+              <div id="busiestList" class="space-y-2.5"></div>
+            </div>
+            <div class="lg:col-span-7 card-surface p-5">
+              <h2 class="text-base font-bold text-ink mb-3">Live Event Feed</h2>
+              <div id="eventFeed" class="space-y-2 max-h-56 overflow-y-auto pr-1 text-xs"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. TRY IT (TIMER VS SMART) -->
+        <section id="page-tryit" class="hidden space-y-5">
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            <div class="lg:col-span-4 card-surface p-5 space-y-4">
+              <h2 class="text-base font-bold text-ink">Test Configuration</h2>
+              <div>
+                <label for="cmpScenario" class="block text-xs font-semibold text-slateink mb-1">Traffic Scenario</label>
+                <select id="cmpScenario" class="w-full px-3 py-2 rounded-lg border border-[#D8D3C8] bg-white text-sm">
+                  <option value="quiet">Quiet roads</option>
+                  <option value="normal" selected>Normal day</option>
+                  <option value="rush">Rush hour</option>
+                  <option value="jam">Heavy jam</option>
+                </select>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label for="cmpSeed" class="block text-xs font-semibold text-slateink mb-1">Random Seed</label>
+                  <input id="cmpSeed" type="number" value="42" min="1" max="99999"
+                    class="w-full px-3 py-2 rounded-lg border border-[#D8D3C8] font-mono text-sm" />
+                </div>
+                <div>
+                  <label for="cmpDuration" class="block text-xs font-semibold text-slateink mb-1">Duration (sec)</label>
+                  <input id="cmpDuration" type="number" value="600" min="60" max="1800" step="60"
+                    class="w-full px-3 py-2 rounded-lg border border-[#D8D3C8] font-mono text-sm" />
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-xs font-semibold text-slateink mb-1">
+                  <span>Arrival Rate Multiplier</span>
+                  <span id="cmpArrivalVal" class="font-mono text-ink">1.0×</span>
+                </div>
+                <input id="cmpArrival" type="range" min="0.5" max="2.0" step="0.1" value="1.0" class="w-full accent-[#0F766E]" />
+              </div>
+              <div>
+                <div class="flex justify-between text-xs font-semibold text-slateink mb-1">
+                  <span>Road Capacity (veh/s green)</span>
+                  <span id="cmpCapacityVal" class="font-mono text-ink">0.85</span>
+                </div>
+                <input id="cmpCapacity" type="range" min="0.4" max="1.5" step="0.05" value="0.85" class="w-full accent-[#0F766E]" />
+              </div>
+              <button id="runComparisonBtn" class="w-full py-2.5 rounded-lg bg-[#0F766E] hover:bg-[#115E59] text-white text-sm font-semibold">
+                Run Same-Traffic Test
+              </button>
+              <div class="pt-2 border-t border-[#E4E0D8]">
+                <div class="text-[11px] font-semibold text-slateink uppercase mb-2">Quick Benchmarks (Seed 42)</div>
+                <div class="grid grid-cols-2 gap-2">
+                  <button data-preset="quiet" class="preset-btn px-2.5 py-1.5 rounded-lg border border-[#D8D3C8] text-xs font-medium hover:bg-[#F6F4EF]">Quiet roads</button>
+                  <button data-preset="normal" class="preset-btn px-2.5 py-1.5 rounded-lg border border-[#D8D3C8] text-xs font-medium hover:bg-[#F6F4EF]">Normal day</button>
+                  <button data-preset="rush" class="preset-btn px-2.5 py-1.5 rounded-lg border border-[#D8D3C8] text-xs font-medium hover:bg-[#F6F4EF]">Rush hour</button>
+                  <button data-preset="jam" class="preset-btn px-2.5 py-1.5 rounded-lg border border-[#D8D3C8] text-xs font-medium hover:bg-[#F6F4EF]">Heavy jam</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="lg:col-span-8 card-surface p-5 flex flex-col justify-between space-y-4">
+              <div>
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                  <div>
+                    <h2 class="text-base font-bold text-ink">Timer Signals vs Smart Signals</h2>
+                    <p id="cmpMeta" class="text-xs text-slateink">Identical seeded arrivals · 600 simulated seconds</p>
+                  </div>
+                  <span id="cmpDeltaPill" class="px-3 py-1 rounded-full text-xs font-bold bg-[#E6F4F1] text-[#0F766E]">
+                    Ready to run
+                  </span>
+                </div>
+
+                <div class="overflow-x-auto">
+                  <table class="w-full text-sm border-collapse">
+                    <thead>
+                      <tr class="border-b border-[#E4E0D8] text-left text-xs uppercase text-slateink">
+                        <th class="py-2.5 pr-4">Metric</th>
+                        <th class="py-2.5 px-4">Timer Signals (20s/20s)</th>
+                        <th class="py-2.5 px-4">Smart Signals (15–40s)</th>
+                        <th class="py-2.5 pl-4 text-right">Difference</th>
+                      </tr>
+                    </thead>
+                    <tbody id="cmpTableBody" class="divide-y divide-[#E4E0D8] font-mono text-xs sm:text-sm"></tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="p-4 rounded-xl bg-[#F6F4EF] border border-[#E4E0D8]">
+                <div class="text-xs font-bold uppercase tracking-wider text-slateink mb-1">Plain-English Result</div>
+                <p id="cmpVerdict" class="text-sm text-ink leading-relaxed">
+                  Click "Run Same-Traffic Test" to compare both controllers on the exact same traffic arrivals.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. SMART SIGNALS -->
+        <section id="page-signals" class="hidden space-y-5">
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            <div class="lg:col-span-6 card-surface p-5">
+              <div class="flex items-center justify-between gap-3 mb-4">
+                <div>
+                  <h2 class="text-base font-bold text-ink">Top-Down Junction View</h2>
+                  <p class="text-xs text-slateink">Safety cycle: Green (15–40 s) → Yellow (3 s) → All-Red (2 s)</p>
+                </div>
+                <select id="signalJunctionSelect" class="px-3 py-1.5 rounded-lg border border-[#D8D3C8] bg-white font-mono text-sm font-semibold">
+                  <option value="A1">A1</option><option value="A2">A2</option><option value="A3">A3</option>
+                  <option value="B1">B1</option><option value="B2" selected>B2</option><option value="B3">B3</option>
+                  <option value="C1">C1</option><option value="C2">C2</option><option value="C3">C3</option>
+                </select>
+              </div>
+
+              <!-- Visual Top-Down Intersection -->
+              <div class="relative bg-[#ECE9E1] border border-[#D8D3C8] rounded-xl h-80 flex items-center justify-center overflow-hidden">
+                <!-- N-S Road -->
+                <div class="absolute inset-y-0 w-24 bg-[#374151] flex flex-col justify-between items-center py-3">
+                  <div class="text-[11px] font-mono text-white/90 bg-black/40 px-2 py-0.5 rounded">N–S: <span id="topNSCount">0</span></div>
+                  <div class="text-[11px] font-mono text-white/70">▲ ▼</div>
+                </div>
+                <!-- E-W Road -->
+                <div class="absolute inset-x-0 h-24 bg-[#374151] flex items-center justify-between px-3">
+                  <div class="text-[11px] font-mono text-white/90 bg-black/40 px-2 py-0.5 rounded">E–W: <span id="topEWCount">0</span></div>
+                  <div class="text-[11px] font-mono text-white/70">◀ ▶</div>
+                </div>
+                <!-- Intersection Box -->
+                <div class="relative z-10 w-28 h-28 bg-[#28303D] border-2 border-dashed border-white/30 rounded-lg flex flex-col items-center justify-center gap-2 p-2">
+                  <div id="topIntersectionStatus" class="text-[11px] font-mono font-bold text-white text-center">E–W GREEN</div>
+                  <div class="flex items-center gap-3">
+                    <div class="flex flex-col items-center gap-1 bg-black/50 p-1.5 rounded">
+                      <span class="text-[9px] text-white/80 font-mono">N-S</span>
+                      <div id="lampNS-R" class="lamp bg-[#DC2626]"></div>
+                      <div id="lampNS-Y" class="lamp bg-[#4B5563]"></div>
+                      <div id="lampNS-G" class="lamp bg-[#4B5563]"></div>
+                    </div>
+                    <div class="flex flex-col items-center gap-1 bg-black/50 p-1.5 rounded">
+                      <span class="text-[9px] text-white/80 font-mono">E-W</span>
+                      <div id="lampEW-R" class="lamp bg-[#4B5563]"></div>
+                      <div id="lampEW-Y" class="lamp bg-[#4B5563]"></div>
+                      <div id="lampEW-G" class="lamp bg-[#16A34A]"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+                <div class="text-xs text-slateink">
+                  Phase timer: <span id="signalTimerText" class="font-mono font-bold text-ink">0 s</span>
+                </div>
+                <button id="requestSwitchBtn" class="px-4 py-2 rounded-lg bg-[#0F766E] hover:bg-[#115E59] text-white text-xs font-semibold">
+                  Request Phase Change (Safe)
+                </button>
+              </div>
+            </div>
+
+            <div class="lg:col-span-6 card-surface p-5 space-y-4">
+              <div>
+                <h2 class="text-base font-bold text-ink">Why Is It Doing This?</h2>
+                <p class="text-xs text-slateink">Transparent scoring formula — no black-box neural network</p>
+              </div>
+
+              <div class="p-3.5 rounded-xl bg-[#F6F4EF] border border-[#E4E0D8] font-mono text-xs text-ink">
+                Score = 60% × (cars waiting ÷ 25) + 40% × (seconds since green ÷ 60)
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div class="p-4 rounded-xl border border-[#E4E0D8] bg-white">
+                  <div class="text-xs font-semibold text-slateink">North–South Score</div>
+                  <div id="scoreNSVal" class="text-2xl font-bold font-mono text-ink mt-1">0.00</div>
+                  <div id="scoreNSDetail" class="text-xs text-slateink mt-1">0 cars · 0 s wait</div>
+                </div>
+                <div class="p-4 rounded-xl border border-[#E4E0D8] bg-white">
+                  <div class="text-xs font-semibold text-slateink">East–West Score</div>
+                  <div id="scoreEWVal" class="text-2xl font-bold font-mono text-ink mt-1">0.00</div>
+                  <div id="scoreEWDetail" class="text-xs text-slateink mt-1">0 cars · 0 s wait</div>
+                </div>
+              </div>
+
+              <div class="p-4 rounded-xl bg-[#E6F4F1]/60 border border-[#BFE3DA]">
+                <div class="text-xs font-bold uppercase tracking-wider text-[#0F766E] mb-1">Live Decision Explanation</div>
+                <p id="signalWhyText" class="text-sm text-ink leading-relaxed">
+                  Checking minimum green time (15 s) before comparing scores.
+                </p>
+              </div>
+
+              <div class="text-xs text-slateink space-y-1">
+                <div>• <strong>Minimum green:</strong> 15 s (prevents rapid flickering)</div>
+                <div>• <strong>Switch margin:</strong> Other direction must score ≥ current + 0.25</div>
+                <div>• <strong>Maximum green:</strong> 40 s forced switch so no road is starved</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. AMBULANCE ROUTE -->
+        <section id="page-ambulance" class="hidden space-y-5">
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            <div class="lg:col-span-4 card-surface p-5 space-y-4">
+              <h2 class="text-base font-bold text-ink">Emergency Corridor Dispatch</h2>
+              <div>
+                <label for="ambVehicle" class="block text-xs font-semibold text-slateink mb-1">Emergency Vehicle</label>
+                <select id="ambVehicle" class="w-full px-3 py-2 rounded-lg border border-[#D8D3C8] bg-white text-sm">
+                  <option value="Ambulance">Ambulance</option>
+                  <option value="Fire Unit">Fire Unit</option>
+                  <option value="Police">Police Escort</option>
+                </select>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label for="ambStart" class="block text-xs font-semibold text-slateink mb-1">Start Junction</label>
+                  <select id="ambStart" class="w-full px-3 py-2 rounded-lg border border-[#D8D3C8] bg-white font-mono text-sm">
+                    <option value="A1" selected>A1</option><option value="A2">A2</option><option value="A3">A3</option>
+                    <option value="B1">B1</option><option value="B2">B2</option><option value="B3">B3</option>
+                    <option value="C1">C1</option><option value="C2">C2</option><option value="C3">C3</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="ambEnd" class="block text-xs font-semibold text-slateink mb-1">Destination</label>
+                  <select id="ambEnd" class="w-full px-3 py-2 rounded-lg border border-[#D8D3C8] bg-white font-mono text-sm">
+                    <option value="A1">A1</option><option value="A2">A2</option><option value="A3">A3</option>
+                    <option value="B1">B1</option><option value="B2">B2</option><option value="B3">B3</option>
+                    <option value="C1">C1</option><option value="C2">C2</option><option value="C3" selected>C3</option>
+                  </select>
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <button id="dispatchAmbBtn" class="flex-1 py-2.5 rounded-lg bg-[#0284C7] hover:bg-[#0369A1] text-white text-sm font-semibold">
+                  Dispatch &amp; Route
+                </button>
+                <button id="clearAmbBtn" class="px-3.5 py-2.5 rounded-lg border border-[#D8D3C8] bg-white hover:bg-[#F6F4EF] text-sm font-medium">
+                  Clear
+                </button>
+              </div>
+
+              <div id="ambSummaryBox" class="p-4 rounded-xl bg-[#F0F9FF] border border-[#BAE6FD] space-y-2 text-xs">
+                <div class="font-bold text-[#0369A1]">No active emergency route</div>
+                <p class="text-slateink">Select a start and destination to calculate the shortest congestion-weighted path via Dijkstra's algorithm.</p>
+              </div>
+            </div>
+
+            <div class="lg:col-span-8 card-surface p-5">
+              <div class="flex items-center justify-between mb-4">
+                <div>
+                  <h2 class="text-base font-bold text-ink">Corridor Map (Cyan Highlight)</h2>
+                  <p class="text-xs text-slateink">Lights ahead request green while strictly passing through Yellow (3 s) and All-Red (2 s)</p>
+                </div>
+                <span id="ambProgressPill" class="px-2.5 py-1 rounded-full bg-[#F1EFE9] text-xs font-mono font-semibold text-slateink">Idle</span>
+              </div>
+              <div id="ambulanceMap" class="w-full overflow-x-auto"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 5. INCIDENTS -->
+        <section id="page-incidents" class="hidden space-y-5">
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            <div class="lg:col-span-4 card-surface p-5 space-y-4">
+              <h2 class="text-base font-bold text-ink">Report Road Incident</h2>
+              <form id="incidentForm" class="space-y-3">
+                <div>
+                  <label for="incJunction" class="block text-xs font-semibold text-slateink mb-1">Junction</label>
+                  <select id="incJunction" class="w-full px-3 py-2 rounded-lg border border-[#D8D3C8] bg-white font-mono text-sm">
+                    <option value="A1">A1</option><option value="A2">A2</option><option value="A3">A3</option>
+                    <option value="B1">B1</option><option value="B2" selected>B2</option><option value="B3">B3</option>
+                    <option value="C1">C1</option><option value="C2">C2</option><option value="C3">C3</option>
+                  </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label for="incType" class="block text-xs font-semibold text-slateink mb-1">Type</label>
+                    <select id="incType" class="w-full px-3 py-2 rounded-lg border border-[#D8D3C8] bg-white text-sm">
+                      <option value="Accident">Accident</option>
+                      <option value="Breakdown">Breakdown</option>
+                      <option value="Roadworks">Roadworks</option>
+                      <option value="Closure">Closure</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label for="incSeverity" class="block text-xs font-semibold text-slateink mb-1">Severity</label>
+                    <select id="incSeverity" class="w-full px-3 py-2 rounded-lg border border-[#D8D3C8] bg-white text-sm">
+                      <option value="Low">Low</option>
+                      <option value="Medium" selected>Medium</option>
+                      <option value="High">High</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label for="incNotes" class="block text-xs font-semibold text-slateink mb-1">Notes</label>
+                  <input id="incNotes" type="text" placeholder="e.g. Left lane blocked near signal"
+                    class="w-full px-3 py-2 rounded-lg border border-[#D8D3C8] text-sm" />
+                </div>
+                <button type="submit" class="w-full py-2.5 rounded-lg bg-[#0F766E] hover:bg-[#115E59] text-white text-sm font-semibold">
+                  Log Incident &amp; Apply Capacity Cut
+                </button>
+              </form>
+              <p class="text-xs text-slateink bg-[#F6F4EF] border border-[#E4E0D8] rounded-lg p-3">
+                <strong>Auto-alert rule:</strong> When any junction queue reaches 30 cars, the system automatically logs a Congestion Alert (without duplicates).
+              </p>
+            </div>
+
+            <div class="lg:col-span-8 card-surface p-5 space-y-4">
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <h2 class="text-base font-bold text-ink">Incident Log</h2>
+                <div class="flex gap-1.5">
+                  <button data-inc-filter="All" class="inc-filter px-3 py-1 rounded-lg bg-[#0F766E] text-white text-xs font-semibold">All</button>
+                  <button data-inc-filter="Active" class="inc-filter px-3 py-1 rounded-lg bg-[#F1EFE9] text-ink text-xs font-semibold">Active</button>
+                  <button data-inc-filter="Resolved" class="inc-filter px-3 py-1 rounded-lg bg-[#F1EFE9] text-ink text-xs font-semibold">Resolved</button>
+                </div>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-xs sm:text-sm border-collapse">
+                  <thead>
+                    <tr class="border-b border-[#E4E0D8] text-left text-xs uppercase text-slateink">
+                      <th class="py-2 pr-3">Junction</th>
+                      <th class="py-2 px-3">Type</th>
+                      <th class="py-2 px-3">Capacity</th>
+                      <th class="py-2 px-3">Status</th>
+                      <th class="py-2 pl-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="incidentsTableBody" class="divide-y divide-[#E4E0D8]"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 6. CHARTS & REPORT -->
+        <section id="page-charts" class="hidden space-y-5">
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            <div class="lg:col-span-7 card-surface p-5 space-y-3">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <h2 class="text-base font-bold text-ink">Live Network Trend</h2>
+                <select id="chartMetricSelect" class="px-3 py-1.5 rounded-lg border border-[#D8D3C8] bg-white text-xs font-semibold">
+                  <option value="avgWait">Average Wait (s)</option>
+                  <option value="totalQueue">Total Cars Waiting</option>
+                  <option value="avgSpeed">Average Speed (km/h)</option>
+                  <option value="throughput">Cumulative Throughput</option>
+                </select>
+              </div>
+              <div class="relative h-72">
+                <canvas id="trendChart"></canvas>
+              </div>
+            </div>
+
+            <div class="lg:col-span-5 card-surface p-5 space-y-3">
+              <h2 class="text-base font-bold text-ink">Queue per Junction</h2>
+              <div class="relative h-72">
+                <canvas id="junctionBarChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            <div class="lg:col-span-7 card-surface p-5 space-y-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h2 class="text-base font-bold text-ink">Rough CO₂ Idle Estimate</h2>
+                  <p class="text-xs text-slateink">Editable assumptions — educational estimate only</p>
+                </div>
+                <div class="text-right">
+                  <div id="co2TotalKg" class="text-2xl font-bold font-mono text-[#0F766E]">0.00 kg</div>
+                  <div class="text-[11px] text-slateink">Estimated idle CO₂</div>
+                </div>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label for="idleBurnInput" class="block text-xs font-semibold text-slateink mb-1">Idle fuel burn (L / hour)</label>
+                  <input id="idleBurnInput" type="number" step="0.1" value="0.8" min="0.2" max="3.0"
+                    class="w-full px-3 py-2 rounded-lg border border-[#D8D3C8] font-mono text-sm" />
+                </div>
+                <div>
+                  <label for="co2PerLitreInput" class="block text-xs font-semibold text-slateink mb-1">CO₂ per litre (kg / L)</label>
+                  <input id="co2PerLitreInput" type="number" step="0.01" value="2.31" min="1.0" max="4.0"
+                    class="w-full px-3 py-2 rounded-lg border border-[#D8D3C8] font-mono text-sm" />
+                </div>
+              </div>
+            </div>
+
+            <div class="lg:col-span-5 card-surface p-5 flex flex-col justify-between space-y-4">
+              <div>
+                <h2 class="text-base font-bold text-ink">Export Recorded Data</h2>
+                <p class="text-xs text-slateink mt-1">
+                  Download all recorded simulation samples (<span id="sampleCountText" class="font-mono font-semibold">0</span> rows) as a CSV spreadsheet with time, queue, speed, throughput, congestion, and incident counts.
+                </p>
+              </div>
+              <button id="exportCsvBtn" class="w-full py-2.5 rounded-lg bg-[#0F766E] hover:bg-[#115E59] text-white text-sm font-semibold">
+                Download CSV Report
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 7. HOW IT WORKS -->
+        <section id="page-howitworks" class="hidden space-y-5">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div class="card-surface p-5 space-y-3">
+              <h2 class="text-base font-bold text-ink">1. The Problem &amp; The Idea</h2>
+              <p class="text-sm text-slateink leading-relaxed">
+                Traditional fixed-time signals give North–South and East–West the exact same green time (20 s each), even when 30 cars wait on one road and 2 on the other. TRAFFIC AI scores both directions every second and shifts green time toward higher demand while guaranteeing fairness and safety.
+              </p>
+              <div class="p-3.5 rounded-xl bg-[#F6F4EF] border border-[#E4E0D8] font-mono text-xs text-ink">
+                Score = 60% × (cars waiting ÷ 25) + 40% × (seconds since green ÷ 60)
+              </div>
+              <ul class="text-xs text-slateink space-y-1.5 pt-1">
+                <li>• <strong>Minimum green:</strong> 15 s before any switch is considered.</li>
+                <li>• <strong>Safety clearance:</strong> Every change passes through 3 s Yellow and 2 s All-Red.</li>
+                <li>• <strong>Maximum green:</strong> Forced switch at 40 s so no road is ever starved.</li>
+              </ul>
+            </div>
+
+            <div class="card-surface p-5 space-y-3">
+              <h2 class="text-base font-bold text-ink">2. Real vs Simulated &amp; Honest Limits</h2>
+              <div class="overflow-x-auto">
+                <table class="w-full text-xs border-collapse">
+                  <thead>
+                    <tr class="border-b border-[#E4E0D8] text-left uppercase text-slateink">
+                      <th class="py-2 pr-3">Real Engineering</th>
+                      <th class="py-2 pl-3">Simulated / Future Work</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-[#E4E0D8] text-slateink">
+                    <tr><td class="py-2 pr-3 font-medium text-ink">Signal safety state machine</td><td class="py-2 pl-3">Poisson queue model (no car physics)</td></tr>
+                    <tr><td class="py-2 pr-3 font-medium text-ink">Adaptive scoring rule</td><td class="py-2 pl-3">Not a trained ML model yet</td></tr>
+                    <tr><td class="py-2 pr-3 font-medium text-ink">Dijkstra shortest-path router</td><td class="py-2 pl-3">3×3 synthetic grid (no live map tiles)</td></tr>
+                    <tr><td class="py-2 pr-3 font-medium text-ink">Capacity cuts &amp; CSV export</td><td class="py-2 pl-3">Demo operator session (no city sensors)</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-surface p-5 space-y-2.5">
+            <h2 class="text-base font-bold text-ink">3. Two-Minute Presentation Script</h2>
+            <p class="text-sm text-slateink leading-relaxed">
+              "Most city traffic lights still run on fixed timers—even when one road has 30 cars and the cross street has 2. In TRAFFIC AI, we built a repeatable 3×3 city simulator where both a fixed-time controller and a smart adaptive controller face the exact same seeded traffic. Every second, the smart signal scores each direction by queue length and waiting time, and never compromises safety: every switch goes through 3 seconds of yellow and 2 seconds of all-red, with a 40-second maximum wait cap. On quiet and normal days, it cuts average wait by 20–26%, while honestly showing that gains shrink to 1–2% in heavy gridlock. You can also dispatch an ambulance using Dijkstra's algorithm, trigger road incidents that cut capacity, and export the full run to CSV."
+            </p>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-4 right-4 z-50 hidden px-4 py-2.5 rounded-xl bg-[#181A1F] text-white text-xs font-medium shadow-lg"></div>
+
+  <script>
+    const JUNCTION_IDS = ['A1', 'A2', 'A3', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3'];
+    const SCENARIOS = {
+      quiet:  { label: 'Quiet roads', baseArrival: 0.14, asymmetry: 1.45 },
+      normal: { label: 'Normal day',  baseArrival: 0.28, asymmetry: 1.35 },
+      rush:   { label: 'Rush hour',   baseArrival: 0.46, asymmetry: 1.18 },
+      jam:    { label: 'Heavy jam',   baseArrival: 0.64, asymmetry: 1.08 }
+    };
+    const JUNCTION_WEIGHTS = {
+      A1: { ns: 0.75, ew: 0.85 }, A2: { ns: 1.25, ew: 0.85 }, A3: { ns: 0.75, ew: 0.85 },
+      B1: { ns: 0.80, ew: 1.35 }, B2: { ns: 1.35, ew: 1.40 }, B3: { ns: 0.80, ew: 1.30 },
+      C1: { ns: 0.75, ew: 0.85 }, C2: { ns: 1.25, ew: 0.85 }, C3: { ns: 0.75, ew: 0.85 }
+    };
+    const ADJACENCY = {
+      A1: ['A2', 'B1'], A2: ['A1', 'A3', 'B2'], A3: ['A2', 'B3'],
+      B1: ['A1', 'B2', 'C1'], B2: ['A2', 'B1', 'B3', 'C2'], B3: ['A3', 'B2', 'C3'],
+      C1: ['B1', 'C2'], C2: ['B2', 'C1', 'C3'], C3: ['B3', 'C2']
+    };
+    const HELP_TEXTS = {
+      dashboard: 'A live 3×3 city grid of nine traffic junctions. Click any junction to inspect its queues and signal timing.',
+      tryit: 'Run Timer Signals and Smart Signals on the exact same seeded traffic to see the honest difference.',
+      signals: 'A close-up view of one junction showing how the scoring formula and safety timers decide when to switch.',
+      ambulance: 'Find the shortest route using Dijkstra’s algorithm and watch lights ahead safely clear the corridor.',
+      incidents: 'Report accidents or roadworks that cut junction capacity, or see automatic alerts when queues hit 30 cars.',
+      charts: 'Live charts of waiting time and queues, an editable CO₂ idle estimate, and 1-click CSV export.',
+      howitworks: 'Plain-English guide to the scoring rule, safety cycle, real vs simulated limits, and demo script.'
+    };
+    const PAGE_TITLES = {
+      dashboard: 'Dashboard',
+      tryit: 'Try It · Timer vs Smart',
+      signals: 'Smart Signals',
+      ambulance: 'Ambulance Route',
+      incidents: 'Incidents',
+      charts: 'Charts & Report',
+      howitworks: 'How It Works'
+    };
+
+    const CAN_USE_API =
+      (window.location.protocol === 'http:' || window.location.protocol === 'https:') &&
+      window.location.origin !== 'null' &&
+      !window.location.href.startsWith('about:') &&
+      !window.location.hostname.includes('googleusercontent') &&
+      !window.location.hostname.includes('scf.usercontent');
+
+    // State
+    let simState = {
+      running: true,
+      timeSec: 0,
+      seed: 42,
+      scenario: 'normal',
+      controllerMode: 'adaptive',
+      speed: 1,
+      selectedJunction: 'B2',
+      throughput: 0,
+      totalCarSeconds: 0,
+      totalCarsEntered: 0,
+      junctions: {},
+      incidents: [
+        {
+          id: 'INC-101', junction: 'B2', type: 'Roadworks', severity: 'Medium',
+          status: 'Active', capacityFactor: 0.60, notes: 'Utility trenching on eastbound lane',
+          autoGenerated: false
+        }
+      ],
+      incidentFilter: 'All',
+      ambulance: null,
+      events: [],
+      samples: []
+    };
+
+    let rngFunc = null;
+    let simInterval = null;
+    let trendChartObj = null;
+    let barChartObj = null;
+
+    function mulberry32(seed) {
+      let a = (Number(seed) || 42) >>> 0;
+      return function () {
+        a |= 0; a = (a + 0x6D2B79F5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+
+    function poissonSample(lambda, rng) {
+      const L = Math.exp(-lambda);
+      let k = 0, p = 1;
+      do { k++; p *= rng(); } while (p > L && k < 12);
+      return k - 1;
+    }
+
+    function computeScore(queue, waitSec) {
+      return 0.6 * (queue / 25) + 0.4 * (waitSec / 60);
+    }
+
+    function getStatusInfo(totalQ) {
+      if (totalQ < 12) return { label: 'Smooth', bg: '#ECFDF5', text: '#15803D', border: '#BBF7D0' };
+      if (totalQ < 22) return { label: 'Busy',   bg: '#FFFBEB', text: '#B45309', border: '#FDE68A' };
+      if (totalQ < 32) return { label: 'Heavy',  bg: '#FEF2F2', text: '#B91C1C', border: '#FECACA' };
+      return { label: 'Jammed', bg: '#FAF5FF', text: '#7E22CE', border: '#E9D5FF' };
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.remove('hidden');
+      clearTimeout(t._timer);
+      t._timer = setTimeout(() => t.classList.add('hidden'), 2600);
+    }
+
+    function addEvent(text, tone = 'neutral') {
+      const m = String(Math.floor(simState.timeSec / 60)).padStart(2, '0');
+      const s = String(simState.timeSec % 60).padStart(2, '0');
+      simState.events.unshift({ time: `${m}:${s}`, text, tone });
+      if (simState.events.length > 30) simState.events.pop();
+    }
+
+    function initSimulation() {
+      rngFunc = mulberry32(simState.seed);
+      simState.timeSec = 0;
+      simState.throughput = 0;
+      simState.totalCarSeconds = 0;
+      simState.totalCarsEntered = 0;
+      simState.samples = [];
+      simState.events = [];
+      simState.ambulance = null;
+
+      for (let i = 0; i < JUNCTION_IDS.length; i++) {
+        const id = JUNCTION_IDS[i];
+        const phase = i % 2 === 0 ? 'NS' : 'EW';
+        simState.junctions[id] = {
+          id,
+          queueNS: Math.floor(rngFunc() * 5) + 2,
+          queueEW: Math.floor(rngFunc() * 6) + 3,
+          phase,
+          light: 'GREEN',
+          phaseElapsed: Math.floor(rngFunc() * 8),
+          nsWaitSec: phase === 'NS' ? 0 : 8,
+          ewWaitSec: phase === 'EW' ? 0 : 8,
+          manualRequest: false,
+          reason: 'Initial green phase active'
+        };
+      }
+      addEvent(`Simulation initialized (${SCENARIOS[simState.scenario].label}, seed ${simState.seed})`);
+      recordSample();
+    }
+
+    function getCapacityFactor(junctionId) {
+      let factor = 1.0;
+      for (const inc of simState.incidents) {
+        if (inc.junction === junctionId && inc.status !== 'Resolved') {
+          factor = Math.min(factor, inc.capacityFactor);
+        }
+      }
+      return factor;
+    }
+
+    function recordSample() {
+      let totalQ = 0;
+      for (const id of JUNCTION_IDS) {
+        totalQ += simState.junctions[id].queueNS + simState.junctions[id].queueEW;
+      }
+      const avgQ = totalQ / 9;
+      const avgWait = simState.totalCarsEntered > 0
+        ? simState.totalCarSeconds / Math.max(1, simState.throughput + avgQ)
+        : 0;
+      const avgSpeed = Math.max(8, Math.min(52, 48 - avgQ * 1.15));
+      const activeInc = simState.incidents.filter((i) => i.status !== 'Resolved').length;
+      const status = getStatusInfo(avgQ * 1.1).label;
+
+      simState.samples.push({
+        timeSec: simState.timeSec,
+        totalQueue: totalQ,
+        avgWait: Number(avgWait.toFixed(1)),
+        avgSpeed: Number(avgSpeed.toFixed(1)),
+        throughput: simState.throughput,
+        congestion: status,
+        activeIncidents: activeInc
+      });
+      if (simState.samples.length > 120) simState.samples.shift();
+    }
+
+    function stepSimulation() {
+      simState.timeSec += 1;
+      const sc = SCENARIOS[simState.scenario] || SCENARIOS.normal;
+      const wave = 1 + 0.25 * Math.sin(simState.timeSec / 45);
+
+      // Emergency corridor ahead request
+      let ambTargetJunction = null;
+      let ambNeededDir = null;
+      if (simState.ambulance && simState.ambulance.active) {
+        const amb = simState.ambulance;
+        amb.progressSec += 1;
+        if (amb.progressSec >= 10 && amb.stepIdx < amb.path.length - 1) {
+          amb.progressSec = 0;
+          amb.stepIdx += 1;
+          addEvent(`${amb.vehicle} reached ${amb.path[amb.stepIdx]}`, 'info');
+          if (amb.stepIdx === amb.path.length - 1) {
+            amb.active = false;
+            addEvent(`${amb.vehicle} arrived at destination ${amb.path[amb.stepIdx]}`, 'info');
+            showToast(`${amb.vehicle} arrived at ${amb.path[amb.stepIdx]}`);
+          }
+        }
+        if (amb.active && amb.stepIdx < amb.path.length - 1) {
+          const cur = amb.path[amb.stepIdx];
+          const nxt = amb.path[amb.stepIdx + 1];
+          ambTargetJunction = nxt;
+          ambNeededDir = cur[0] === nxt[0] ? 'EW' : 'NS';
+        }
+      }
+
+      for (const id of JUNCTION_IDS) {
+        const j = simState.junctions[id];
+        const w = JUNCTION_WEIGHTS[id];
+        const lamNS = sc.baseArrival * w.ns * (2 - wave * 0.5) / sc.asymmetry;
+        const lamEW = sc.baseArrival * w.ew * wave * sc.asymmetry;
+
+        const arrNS = poissonSample(Math.max(0.02, lamNS), rngFunc);
+        const arrEW = poissonSample(Math.max(0.02, lamEW), rngFunc);
+        j.queueNS += arrNS;
+        j.queueEW += arrEW;
+        simState.totalCarsEntered += arrNS + arrEW;
+
+        j.phaseElapsed += 1;
+        if (j.phase === 'NS') { j.nsWaitSec = 0; j.ewWaitSec += 1; }
+        else { j.ewWaitSec = 0; j.nsWaitSec += 1; }
+
+        if (j.light === 'GREEN') {
+          if (ambTargetJunction === id && ambNeededDir && j.phase !== ambNeededDir && j.phaseElapsed >= 6) {
+            j.light = 'YELLOW';
+            j.phaseElapsed = 0;
+            j.reason = `Emergency preemption requested for ${ambNeededDir} (passing safely through Yellow & All-Red).`;
+          } else if (j.manualRequest && j.phaseElapsed >= 15) {
+            j.manualRequest = false;
+            j.light = 'YELLOW';
+            j.phaseElapsed = 0;
+            j.reason = 'Operator requested phase change after 15 s minimum green.';
+          } else if (simState.controllerMode === 'fixed') {
+            j.reason = `Fixed timer mode: holding ${j.phase} green until 20 s (${20 - j.phaseElapsed} s left).`;
+            if (j.phaseElapsed >= 20) {
+              j.light = 'YELLOW';
+              j.phaseElapsed = 0;
+              j.reason = '20 s timer complete — switching via Yellow (3 s) and All-Red (2 s).';
+            }
+          } else {
+            const curQ = j.phase === 'NS' ? j.queueNS : j.queueEW;
+            const othQ = j.phase === 'NS' ? j.queueEW : j.queueNS;
+            const curW = j.phase === 'NS' ? j.nsWaitSec : j.ewWaitSec;
+            const othW = j.phase === 'NS' ? j.ewWaitSec : j.nsWaitSec;
+            const curS = computeScore(curQ, curW);
+            const othS = computeScore(othQ, othW);
+
+            if (j.phaseElapsed >= 40) {
+              j.light = 'YELLOW';
+              j.phaseElapsed = 0;
+              j.reason = '40 s maximum green reached — forcing safe switch for fairness.';
+            } else if (j.phaseElapsed < 15) {
+              j.reason = `Holding ${j.phase} green until 15 s minimum (${15 - j.phaseElapsed} s left).`;
+            } else if (othS >= curS + 0.25) {
+              j.light = 'YELLOW';
+              j.phaseElapsed = 0;
+              j.reason = `Other direction scored ${othS.toFixed(2)} vs ${curS.toFixed(2)} (≥ +0.25 margin) — starting safe switch.`;
+            } else {
+              j.reason = `Keeping ${j.phase} green: score ${curS.toFixed(2)} vs ${othS.toFixed(2)} (margin < 0.25).`;
+            }
+          }
+        } else if (j.light === 'YELLOW') {
+          j.reason = `Yellow clearance (${3 - j.phaseElapsed} s left before All-Red).`;
+          if (j.phaseElapsed >= 3) {
+            j.light = 'ALL_RED';
+            j.phaseElapsed = 0;
+            j.reason = 'All-Red safety clearance (2 s) — no direction is green.';
+          }
+        } else if (j.light === 'ALL_RED') {
+          j.reason = `All-Red clearance (${2 - j.phaseElapsed} s left).`;
+          if (j.phaseElapsed >= 2) {
+            j.phase = j.phase === 'NS' ? 'EW' : 'NS';
+            j.light = 'GREEN';
+            j.phaseElapsed = 0;
+            j.reason = `${j.phase} turned Green after safe clearance.`;
+          }
+        }
+
+        // Departures
+        if (j.light === 'GREEN') {
+          const cap = 0.85 * getCapacityFactor(id);
+          const depBase = Math.floor(cap);
+          const frac = cap - depBase;
+          const canLeave = depBase + (rngFunc() < frac ? 1 : 0);
+          if (j.phase === 'NS' && j.queueNS > 0) {
+            const left = Math.min(j.queueNS, canLeave);
+            j.queueNS -= left;
+            simState.throughput += left;
+          } else if (j.phase === 'EW' && j.queueEW > 0) {
+            const left = Math.min(j.queueEW, canLeave);
+            j.queueEW -= left;
+            simState.throughput += left;
+          }
+        }
+
+        const totalQ = j.queueNS + j.queueEW;
+        simState.totalCarSeconds += totalQ;
+
+        // Auto-incident rule: queue >= 30 without duplicates
+        if (totalQ >= 30) {
+          const exists = simState.incidents.find(
+            (inc) => inc.junction === id && inc.status !== 'Resolved' && inc.type === 'Congestion Alert'
+          );
+          if (!exists) {
+            simState.incidents.unshift({
+              id: `INC-${Math.floor(100 + Math.random() * 900)}`,
+              junction: id,
+              type: 'Congestion Alert',
+              severity: 'Medium',
+              status: 'Active',
+              capacityFactor: 0.85,
+              notes: `Auto-alert: queue reached ${totalQ} cars`,
+              autoGenerated: true
+            });
+            addEvent(`Auto-incident raised at ${id} (queue ${totalQ} cars)`, 'warn');
+          }
+        }
+      }
+
+      if (simState.timeSec % 5 === 0) recordSample();
+      renderAll();
+    }
+
+    function renderGridMap(containerId, { highlightPath = [], ambNode = null } = {}) {
+      const container = document.getElementById(containerId);
+      const pathEdges = new Set();
+      for (let i = 0; i < highlightPath.length - 1; i++) {
+        pathEdges.add(`${highlightPath[i]}-${highlightPath[i+1]}`);
+        pathEdges.add(`${highlightPath[i+1]}-${highlightPath[i]}`);
+      }
+
+      let html = '<div class="min-w-[440px] bg-[#F6F4EF] border border-[#E4E0D8] rounded-xl p-4">';
+      html += '<div class="grid grid-cols-3 gap-4 relative">';
+
+      for (const id of JUNCTION_IDS) {
+        const j = simState.junctions[id];
+        const totalQ = j.queueNS + j.queueEW;
+        const st = getStatusInfo(totalQ);
+        const isSelected = simState.selectedJunction === id;
+        const onPath = highlightPath.includes(id);
+        const hasAmb = ambNode === id;
+        const hasIncident = simState.incidents.some((inc) => inc.junction === id && inc.status !== 'Resolved');
+
+        const lightDot = j.light === 'GREEN' ? '#16A34A' : j.light === 'YELLOW' ? '#D97706' : '#DC2626';
+
+        html += `
+          <button onclick="selectJunction('${id}')"
+            class="relative text-left p-3 rounded-xl bg-white border-2 transition-all ${
+              hasAmb ? 'border-[#0284C7] ring-2 ring-[#0284C7]/30' :
+              onPath ? 'border-[#0284C7]' :
+              isSelected ? 'border-[#0F766E] ring-2 ring-[#0F766E]/20' :
+              'border-[#E4E0D8] hover:border-[#BDB6A8]'
+            }">
+            <div class="flex items-center justify-between gap-1 mb-2">
+              <div class="flex items-center gap-1.5">
+                <span class="font-mono font-bold text-sm text-ink">${id}</span>
+                ${hasAmb ? '<span class="px-1.5 py-0.5 rounded bg-[#0284C7] text-white text-[10px] font-bold">AMB</span>' : ''}
+                ${hasIncident ? '<span class="px-1.5 py-0.5 rounded bg-[#FEF2F2] text-[#B91C1C] border border-[#FECACA] text-[10px] font-bold">!</span>' : ''}
+              </div>
+              <span class="px-1.5 py-0.5 rounded text-[10px] font-semibold" style="background:${st.bg};color:${st.text};border:1px solid ${st.border}">${st.label}</span>
+            </div>
+            <div class="flex items-center justify-between text-xs text-slateink">
+              <span class="font-mono">N-S <strong class="text-ink">${j.queueNS}</strong></span>
+              <span class="font-mono">E-W <strong class="text-ink">${j.queueEW}</strong></span>
+            </div>
+            <div class="mt-2 pt-2 border-t border-[#F1EFE9] flex items-center justify-between text-[11px]">
+              <span class="flex items-center gap-1.5 font-mono font-medium text-ink">
+                <span class="w-2.5 h-2.5 rounded-full" style="background:${lightDot}"></span>
+                ${j.light === 'ALL_RED' ? 'ALL-RED' : j.phase}
+              </span>
+              <span class="font-mono text-slateink">${j.phaseElapsed}s</span>
+            </div>
+          </button>
+        `;
+      }
+      html += '</div></div>';
+      container.innerHTML = html;
+    }
+
+    function selectJunction(id) {
+      simState.selectedJunction = id;
+      document.getElementById('signalJunctionSelect').value = id;
+      renderAll();
+    }
+
+    function renderDashboard() {
+      let totalQ = 0;
+      const ranked = [];
+      for (const id of JUNCTION_IDS) {
+        const j = simState.junctions[id];
+        const q = j.queueNS + j.queueEW;
+        totalQ += q;
+        ranked.push({ id, q, j });
+      }
+      ranked.sort((a, b) => b.q - a.q);
+
+      const avgQ = totalQ / 9;
+      const avgWait = simState.totalCarsEntered > 0
+        ? simState.totalCarSeconds / Math.max(1, simState.throughput + avgQ)
+        : 0;
+      const avgSpeed = Math.max(8, Math.min(52, 48 - avgQ * 1.15));
+      const activeInc = simState.incidents.filter((i) => i.status !== 'Resolved').length;
+      const netStatus = getStatusInfo(avgQ * 1.1);
+
+      document.getElementById('kpiQueue').textContent = totalQ;
+      document.getElementById('kpiWait').textContent = `${avgWait.toFixed(0)} s`;
+      document.getElementById('kpiSpeed').textContent = `${avgSpeed.toFixed(0)} km/h`;
+      document.getElementById('kpiThroughput').textContent = simState.throughput;
+      document.getElementById('kpiIncidents').textContent = activeInc;
+      document.getElementById('sidebarIncidentBadge').textContent = activeInc;
+
+      const sb = document.getElementById('kpiStatusBadge');
+      sb.textContent = netStatus.label;
+      sb.style.background = netStatus.bg;
+      sb.style.color = netStatus.text;
+      sb.style.borderColor = netStatus.border;
+
+      const amb = simState.ambulance;
+      renderGridMap('dashboardMap', {
+        highlightPath: amb && amb.active ? amb.path : [],
+        ambNode: amb && amb.active ? amb.path[amb.stepIdx] : null
+      });
+
+      const sel = simState.junctions[simState.selectedJunction];
+      const selQ = sel.queueNS + sel.queueEW;
+      const selSt = getStatusInfo(selQ);
+      const capPct = Math.round(getCapacityFactor(sel.id) * 100);
+
+      document.getElementById('selectedJuncTitle').textContent = `Junction ${sel.id}`;
+      document.getElementById('selectedJuncSub').textContent = `${capPct}% road capacity active`;
+      const selBadge = document.getElementById('selectedJuncBadge');
+      selBadge.textContent = selSt.label;
+      selBadge.style.background = selSt.bg;
+      selBadge.style.color = selSt.text;
+      selBadge.style.borderColor = selSt.border;
+
+      document.getElementById('selectedPhaseLabel').textContent =
+        sel.light === 'ALL_RED' ? `ALL-RED (${sel.phaseElapsed} s)` : `${sel.phase === 'NS' ? 'North–South' : 'East–West'} · ${sel.light} (${sel.phaseElapsed} s)`;
+      document.getElementById('selectedQueueNS').textContent = `${sel.queueNS} cars`;
+      document.getElementById('selectedQueueEW').textContent = `${sel.queueEW} cars`;
+      document.getElementById('selectedBarNS').style.width = `${Math.min(100, sel.queueNS * 3)}%`;
+      document.getElementById('selectedBarEW').style.width = `${Math.min(100, sel.queueEW * 3)}%`;
+      document.getElementById('selectedReason').textContent = sel.reason;
+
+      // Busiest list
+      document.getElementById('busiestList').innerHTML = ranked.slice(0, 4).map((item) => {
+        const st = getStatusInfo(item.q);
+        return `
+          <div class="flex items-center justify-between p-2.5 rounded-lg bg-[#F6F4EF] border border-[#E4E0D8]">
+            <div class="flex items-center gap-2.5">
+              <span class="font-mono font-bold text-sm text-ink">${item.id}</span>
+              <span class="text-xs text-slateink">N-S ${item.j.queueNS} · E-W ${item.j.queueEW}</span>
+            </div>
+            <span class="px-2 py-0.5 rounded text-[11px] font-semibold" style="background:${st.bg};color:${st.text}">${item.q} cars · ${st.label}</span>
+          </div>
+        `;
+      }).join('');
+
+      // Event feed
+      document.getElementById('eventFeed').innerHTML = simState.events.map((ev) => `
+        <div class="flex items-start gap-2.5 p-2 rounded-lg bg-[#FAF9F6] border border-[#E4E0D8]">
+          <span class="font-mono text-slateink shrink-0">${ev.time}</span>
+          <span class="text-ink">${ev.text}</span>
+        </div>
+      `).join('');
+    }
+
+    function renderSignalsPage() {
+      const id = document.getElementById('signalJunctionSelect').value;
+      const j = simState.junctions[id];
+      document.getElementById('topNSCount').textContent = j.queueNS;
+      document.getElementById('topEWCount').textContent = j.queueEW;
+      document.getElementById('signalTimerText').textContent = `${j.phaseElapsed} s (${j.light})`;
+      document.getElementById('topIntersectionStatus').textContent =
+        j.light === 'ALL_RED' ? 'ALL-RED' : `${j.phase} ${j.light}`;
+
+      const nsR = j.light === 'ALL_RED' || j.phase !== 'NS';
+      const nsY = j.phase === 'NS' && j.light === 'YELLOW';
+      const nsG = j.phase === 'NS' && j.light === 'GREEN';
+      const ewR = j.light === 'ALL_RED' || j.phase !== 'EW';
+      const ewY = j.phase === 'EW' && j.light === 'YELLOW';
+      const ewG = j.phase === 'EW' && j.light === 'GREEN';
+
+      document.getElementById('lampNS-R').style.background = nsR ? '#DC2626' : '#4B5563';
+      document.getElementById('lampNS-Y').style.background = nsY ? '#F59E0B' : '#4B5563';
+      document.getElementById('lampNS-G').style.background = nsG ? '#16A34A' : '#4B5563';
+      document.getElementById('lampEW-R').style.background = ewR ? '#DC2626' : '#4B5563';
+      document.getElementById('lampEW-Y').style.background = ewY ? '#F59E0B' : '#4B5563';
+      document.getElementById('lampEW-G').style.background = ewG ? '#16A34A' : '#4B5563';
+
+      const sNS = computeScore(j.queueNS, j.nsWaitSec);
+      const sEW = computeScore(j.queueEW, j.ewWaitSec);
+      document.getElementById('scoreNSVal').textContent = sNS.toFixed(2);
+      document.getElementById('scoreEWVal').textContent = sEW.toFixed(2);
+      document.getElementById('scoreNSDetail').textContent = `${j.queueNS} cars · ${j.nsWaitSec} s wait`;
+      document.getElementById('scoreEWDetail').textContent = `${j.queueEW} cars · ${j.ewWaitSec} s wait`;
+      document.getElementById('signalWhyText').textContent = j.reason;
+    }
+
+    function renderAmbulancePage() {
+      const amb = simState.ambulance;
+      renderGridMap('ambulanceMap', {
+        highlightPath: amb ? amb.path : [],
+        ambNode: amb && amb.active ? amb.path[amb.stepIdx] : null
+      });
+      const pill = document.getElementById('ambProgressPill');
+      if (!amb) {
+        pill.textContent = 'Idle';
+        return;
+      }
+      pill.textContent = amb.active
+        ? `At ${amb.path[amb.stepIdx]} (${amb.stepIdx + 1}/${amb.path.length})`
+        : `Arrived at ${amb.path[amb.path.length - 1]}`;
+    }
+
+    function renderIncidentsPage() {
+      const filtered = simState.incidents.filter((inc) => {
+        if (simState.incidentFilter === 'All') return true;
+        if (simState.incidentFilter === 'Active') return inc.status !== 'Resolved';
+        return inc.status === 'Resolved';
+      });
+      document.getElementById('incidentsTableBody').innerHTML = filtered.length === 0
+        ? '<tr><td colspan="5" class="py-6 text-center text-slateink">No incidents match this filter.</td></tr>'
+        : filtered.map((inc) => `
+          <tr>
+            <td class="py-2.5 pr-3 font-mono font-bold text-ink">${inc.junction}</td>
+            <td class="py-2.5 px-3">
+              <div class="font-semibold text-ink">${inc.type}</div>
+              <div class="text-[11px] text-slateink">${inc.notes}</div>
+            </td>
+            <td class="py-2.5 px-3 font-mono">${Math.round(inc.capacityFactor * 100)}%</td>
+            <td class="py-2.5 px-3">
+              <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                inc.status === 'Resolved' ? 'bg-[#ECFDF5] text-[#15803D]' :
+                inc.status === 'Responding' ? 'bg-[#FFFBEB] text-[#B45309]' :
+                'bg-[#FEF2F2] text-[#B91C1C]'
+              }">${inc.status}</span>
+            </td>
+            <td class="py-2.5 pl-3 text-right space-x-1">
+              ${inc.status !== 'Resolved'
+                ? `<button onclick="updateIncident('${inc.id}','advance')" class="px-2 py-1 rounded border border-[#D8D3C8] text-[11px] font-semibold hover:bg-[#F6F4EF]">Advance</button>
+                   <button onclick="updateIncident('${inc.id}','resolve')" class="px-2 py-1 rounded bg-[#0F766E] text-white text-[11px] font-semibold">Resolve</button>`
+                : `<button onclick="updateIncident('${inc.id}','reopen')" class="px-2 py-1 rounded border border-[#D8D3C8] text-[11px] font-semibold hover:bg-[#F6F4EF]">Reopen</button>`
+              }
+            </td>
+          </tr>
+        `).join('');
+    }
+
+    async function updateIncident(id, action) {
+      const inc = simState.incidents.find((i) => i.id === id);
+      if (!inc) return;
+      if (action === 'resolve') inc.status = 'Resolved';
+      else if (action === 'reopen') inc.status = 'Active';
+      else if (action === 'advance') inc.status = inc.status === 'Active' ? 'Responding' : 'Resolved';
+
+      if (CAN_USE_API) {
+        try {
+          await fetch('/api/incidents', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, action })
+          });
+        } catch {}
+      }
+      renderAll();
+    }
+
+    function renderChartsPage() {
+      const samples = simState.samples;
+      const metric = document.getElementById('chartMetricSelect').value;
+      const labels = samples.map((s) => `${s.timeSec}s`);
+      const dataPts = samples.map((s) => s[metric]);
+
+      if (trendChartObj) {
+        trendChartObj.data.labels = labels;
+        trendChartObj.data.datasets[0].data = dataPts;
+        trendChartObj.data.datasets[0].label = document.getElementById('chartMetricSelect').selectedOptions[0].text;
+        trendChartObj.update('none');
+      }
+
+      if (barChartObj) {
+        barChartObj.data.datasets[0].data = JUNCTION_IDS.map((id) => simState.junctions[id].queueNS);
+        barChartObj.data.datasets[1].data = JUNCTION_IDS.map((id) => simState.junctions[id].queueEW);
+        barChartObj.update('none');
+      }
+
+      const burn = Number(document.getElementById('idleBurnInput').value) || 0.8;
+      const co2PerL = Number(document.getElementById('co2PerLitreInput').value) || 2.31;
+      const idleHours = simState.totalCarSeconds / 3600;
+      document.getElementById('co2TotalKg').textContent = `${(idleHours * burn * co2PerL).toFixed(2)} kg`;
+      document.getElementById('sampleCountText').textContent = samples.length;
+    }
+
+    function initCharts() {
+      const ctx1 = document.getElementById('trendChart').getContext('2d');
+      trendChartObj = new Chart(ctx1, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'Average Wait (s)',
+            data: [],
+            borderColor: '#0F766E',
+            backgroundColor: 'rgba(15, 118, 110, 0.12)',
+            fill: true,
+            tension: 0.25,
+            pointRadius: 2
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, animation: false }
+      });
+
+      const ctx2 = document.getElementById('junctionBarChart').getContext('2d');
+      barChartObj = new Chart(ctx2, {
+        type: 'bar',
+        data: {
+          labels: JUNCTION_IDS,
+          datasets: [
+            { label: 'North–South', data: [], backgroundColor: '#0F766E' },
+            { label: 'East–West', data: [], backgroundColor: '#D97706' }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } }
+        }
+      });
+    }
+
+    function renderAll() {
+      const m = String(Math.floor(simState.timeSec / 60)).padStart(2, '0');
+      const s = String(simState.timeSec % 60).padStart(2, '0');
+      document.getElementById('simClock').textContent = `${m}:${s}`;
+      renderDashboard();
+      renderSignalsPage();
+      renderAmbulancePage();
+      renderIncidentsPage();
+      renderChartsPage();
+    }
+
+    function switchPage(page) {
+      document.querySelectorAll('main > section').forEach((sec) => sec.classList.add('hidden'));
+      document.getElementById(`page-${page}`).classList.remove('hidden');
+      document.querySelectorAll('.nav-item').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.page === page);
+        if (btn.dataset.page !== page) btn.classList.add('text-slateink');
+        else btn.classList.remove('text-slateink');
+      });
+      document.getElementById('pageTitle').textContent = PAGE_TITLES[page] || 'Dashboard';
+      document.getElementById('helpStripText').textContent = HELP_TEXTS[page] || '';
+      if (window.innerWidth < 1024) document.getElementById('sidebar').classList.add('hidden');
+      renderAll();
+    }
+
+    // Local fallback head-to-head comparison (identical to backend api/_engine.js)
+    function runLocalComparison(params) {
+      const sc = SCENARIOS[params.scenario] || SCENARIOS.normal;
+      const steps = Math.max(60, Math.min(1800, Number(params.duration) || 600));
+      const arrMult = Number(params.arrivalMultiplier) || 1.0;
+      const cap = Number(params.capacityRate) || 0.85;
+      const arrivalRng = mulberry32(params.seed);
+      const arrivals = new Array(steps);
+
+      for (let t = 0; t < steps; t++) {
+        const stepArr = {};
+        const wave = 1 + 0.25 * Math.sin(t / 45);
+        for (const id of JUNCTION_IDS) {
+          const w = JUNCTION_WEIGHTS[id];
+          stepArr[id] = {
+            ns: poissonSample(Math.max(0.02, sc.baseArrival * arrMult * w.ns * (2 - wave * 0.5) / sc.asymmetry), arrivalRng),
+            ew: poissonSample(Math.max(0.02, sc.baseArrival * arrMult * w.ew * wave * sc.asymmetry), arrivalRng)
+          };
+        }
+        arrivals[t] = stepArr;
+      }
+
+      function simMode(mode) {
+        const initRng = mulberry32((Number(params.seed) || 42) + 999);
+        const juncs = {};
+        JUNCTION_IDS.forEach((id, i) => {
+          const phase = i % 2 === 0 ? 'NS' : 'EW';
+          juncs[id] = {
+            queueNS: Math.floor(initRng() * 5) + 1,
+            queueEW: Math.floor(initRng() * 6) + 2,
+            phase, light: 'GREEN', phaseElapsed: Math.floor(initRng() * 8),
+            nsWaitSec: phase === 'NS' ? 0 : 8, ewWaitSec: phase === 'EW' ? 0 : 8
+          };
+        });
+        let totalCarSeconds = 0, totalCarsEntered = 0, totalThroughput = 0, maxQ = 0, qSum = 0;
+        for (let t = 0; t < steps; t++) {
+          let stepQ = 0;
+          for (const id of JUNCTION_IDS) {
+            const j = juncs[id], a = arrivals[t][id];
+            j.queueNS += a.ns; j.queueEW += a.ew;
+            totalCarsEntered += a.ns + a.ew;
+            j.phaseElapsed += 1;
+            if (j.phase === 'NS') { j.nsWaitSec = 0; j.ewWaitSec += 1; } else { j.ewWaitSec = 0; j.nsWaitSec += 1; }
+
+            if (j.light === 'GREEN') {
+              if (mode === 'fixed' && j.phaseElapsed >= 20) { j.light = 'YELLOW'; j.phaseElapsed = 0; }
+              else if (mode === 'adaptive') {
+                const cS = computeScore(j.phase === 'NS' ? j.queueNS : j.queueEW, j.phase === 'NS' ? j.nsWaitSec : j.ewWaitSec);
+                const oS = computeScore(j.phase === 'NS' ? j.queueEW : j.queueNS, j.phase === 'NS' ? j.ewWaitSec : j.nsWaitSec);
+                if (j.phaseElapsed >= 40 || (j.phaseElapsed >= 15 && oS >= cS + 0.25)) {
+                  j.light = 'YELLOW'; j.phaseElapsed = 0;
+                }
+              }
+            } else if (j.light === 'YELLOW' && j.phaseElapsed >= 3) { j.light = 'ALL_RED'; j.phaseElapsed = 0; }
+            else if (j.light === 'ALL_RED' && j.phaseElapsed >= 2) { j.phase = j.phase === 'NS' ? 'EW' : 'NS'; j.light = 'GREEN'; j.phaseElapsed = 0; }
+
+            if (j.light === 'GREEN') {
+              const depBase = Math.floor(cap);
+              const extra = ((t + id.charCodeAt(1)) % 100) < (cap - depBase) * 100 ? 1 : 0;
+              const canLeave = depBase + extra;
+              if (j.phase === 'NS') { const l = Math.min(j.queueNS, canLeave); j.queueNS -= l; totalThroughput += l; }
+              else { const l = Math.min(j.queueEW, canLeave); j.queueEW -= l; totalThroughput += l; }
+            }
+            const qt = j.queueNS + j.queueEW;
+            stepQ += qt; if (qt > maxQ) maxQ = qt; totalCarSeconds += qt;
+          }
+          qSum += stepQ;
+        }
+        const avgWait = totalCarsEntered > 0 ? totalCarSeconds / Math.max(1, totalThroughput + qSum / steps) : 0;
+        const avgQ = qSum / (steps * 9);
+        return {
+          avgWait: Number(avgWait.toFixed(1)),
+          maxQueue: maxQ,
+          throughput: totalThroughput,
+          avgSpeed: Number(Math.max(8, Math.min(54, 48 - avgQ * 1.15)).toFixed(1))
+        };
+      }
+
+      const fixed = simMode('fixed');
+      const adaptive = simMode('adaptive');
+      const waitDeltaPct = fixed.avgWait > 0 ? Number((((adaptive.avgWait - fixed.avgWait) / fixed.avgWait) * 100).toFixed(1)) : 0;
+      const throughputDeltaPct = fixed.throughput > 0 ? Number((((adaptive.throughput - fixed.throughput) / fixed.throughput) * 100).toFixed(1)) : 0;
+
+      let summary = `Smart signals reduced average wait by ${Math.abs(waitDeltaPct)}% on ${sc.label.toLowerCase()}.`;
+      if (waitDeltaPct >= 0) summary = `Both controllers performed nearly identically (${waitDeltaPct}%) on ${sc.label.toLowerCase()} because roads stay saturated.`;
+      else if (waitDeltaPct <= -10) summary = `Smart signals cut average wait by ${Math.abs(waitDeltaPct)}% on ${sc.label.toLowerCase()} by shifting green time toward busier queues.`;
+
+      return { scenarioLabel: sc.label, seed: params.seed, duration: steps, fixed, adaptive, waitDeltaPct, throughputDeltaPct, summary };
+    }
+
+    async function executeComparison() {
+      const params = {
+        scenario: document.getElementById('cmpScenario').value,
+        seed: Number(document.getElementById('cmpSeed').value) || 42,
+        duration: Number(document.getElementById('cmpDuration').value) || 600,
+        arrivalMultiplier: Number(document.getElementById('cmpArrival').value) || 1.0,
+        capacityRate: Number(document.getElementById('cmpCapacity').value) || 0.85
+      };
+
+      let res = null;
+      if (CAN_USE_API) {
+        try {
+          const r = await fetch('/api/simulate', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params)
+          });
+          if (r.ok) res = await r.json();
+        } catch {}
+      }
+      if (!res) res = runLocalComparison(params);
+
+      document.getElementById('cmpMeta').textContent = `${res.scenarioLabel} · Seed ${res.seed} · ${res.duration} simulated seconds`;
+      const pill = document.getElementById('cmpDeltaPill');
+      pill.textContent = res.waitDeltaPct < 0 ? `${res.waitDeltaPct}% avg wait` : `+${res.waitDeltaPct}% avg wait`;
+      pill.className = res.waitDeltaPct <= 0
+        ? 'px-3 py-1 rounded-full text-xs font-bold bg-[#ECFDF5] text-[#15803D]'
+        : 'px-3 py-1 rounded-full text-xs font-bold bg-[#FFFBEB] text-[#B45309]';
+
+      const maxQDiff = res.fixed.maxQueue > 0 ? (((res.adaptive.maxQueue - res.fixed.maxQueue) / res.fixed.maxQueue) * 100).toFixed(1) : '0.0';
+      const spdDiff = res.fixed.avgSpeed > 0 ? (((res.adaptive.avgSpeed - res.fixed.avgSpeed) / res.fixed.avgSpeed) * 100).toFixed(1) : '0.0';
+
+      document.getElementById('cmpTableBody').innerHTML = `
+        <tr><td class="py-2.5 pr-4 font-sans font-medium">Average wait per car</td><td class="py-2.5 px-4">${res.fixed.avgWait} s</td><td class="py-2.5 px-4 font-bold text-[#0F766E]">${res.adaptive.avgWait} s</td><td class="py-2.5 pl-4 text-right font-bold">${res.waitDeltaPct}%</td></tr>
+        <tr><td class="py-2.5 pr-4 font-sans font-medium">Peak junction queue</td><td class="py-2.5 px-4">${res.fixed.maxQueue} cars</td><td class="py-2.5 px-4 font-bold text-[#0F766E]">${res.adaptive.maxQueue} cars</td><td class="py-2.5 pl-4 text-right">${maxQDiff}%</td></tr>
+        <tr><td class="py-2.5 pr-4 font-sans font-medium">Total cars cleared</td><td class="py-2.5 px-4">${res.fixed.throughput}</td><td class="py-2.5 px-4 font-bold text-[#0F766E]">${res.adaptive.throughput}</td><td class="py-2.5 pl-4 text-right">+${res.throughputDeltaPct}%</td></tr>
+        <tr><td class="py-2.5 pr-4 font-sans font-medium">Average speed</td><td class="py-2.5 px-4">${res.fixed.avgSpeed} km/h</td><td class="py-2.5 px-4 font-bold text-[#0F766E]">${res.adaptive.avgSpeed} km/h</td><td class="py-2.5 pl-4 text-right">+${spdDiff}%</td></tr>
+      `;
+      document.getElementById('cmpVerdict').textContent = res.summary;
+    }
+
+    function runLocalDijkstra(start, end) {
+      const dist = {}, prev = {}, visited = new Set();
+      JUNCTION_IDS.forEach((id) => { dist[id] = Infinity; prev[id] = null; });
+      dist[start] = 0;
+      while (visited.size < JUNCTION_IDS.length) {
+        let u = null, best = Infinity;
+        for (const id of JUNCTION_IDS) if (!visited.has(id) && dist[id] < best) { best = dist[id]; u = id; }
+        if (!u || u === end) break;
+        visited.add(u);
+        for (const v of ADJACENCY[u]) {
+          if (visited.has(v)) continue;
+          const q = simState.junctions[v].queueNS + simState.junctions[v].queueEW;
+          const alt = dist[u] + 18 + Math.min(35, q * 0.65);
+          if (alt < dist[v]) { dist[v] = alt; prev[v] = u; }
+        }
+      }
+      const path = [];
+      let cur = end;
+      while (cur) { path.unshift(cur); cur = prev[cur]; }
+      const segs = Math.max(0, path.length - 1);
+      return {
+        path,
+        distanceMeters: segs * 400,
+        estimatedSeconds: Math.round(dist[end]),
+        timeSavedSeconds: segs * 11
+      };
+    }
+
+    function restartTimer() {
+      clearInterval(simInterval);
+      if (simState.running) {
+        simInterval = setInterval(stepSimulation, Math.round(1000 / simState.speed));
+      }
+    }
+
+    // Event Wiring
+    document.addEventListener('DOMContentLoaded', () => {
+      initCharts();
+      initSimulation();
+      renderAll();
+
+      // Check backend health silently when hosted
+      if (CAN_USE_API) {
+        fetch('/api/health').then((r) => {
+          if (r.ok) document.getElementById('backendBadge').textContent = 'Vercel API Connected';
+        }).catch(() => {});
+      }
+
+      async function enterApp(name, role) {
+        document.getElementById('userDisplay').textContent = `${name} (${role})`;
+        document.getElementById('loginView').classList.add('hidden');
+        document.getElementById('appShell').classList.remove('hidden');
+        restartTimer();
+        executeComparison();
+        if (CAN_USE_API) {
+          try {
+            await fetch('/api/auth', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name, role })
+            });
+          } catch {}
+        }
+      }
+
+      document.getElementById('loginForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = document.getElementById('operatorName').value.trim() || 'Demo Operator';
+        const role = document.getElementById('operatorRole').value;
+        enterApp(name, role);
+      });
+
+      document.getElementById('demoGuestBtn').addEventListener('click', () => {
+        enterApp('Demo Guest', 'Evaluator');
+      });
+
+      document.getElementById('signOutBtn').addEventListener('click', () => {
+        clearInterval(simInterval);
+        document.getElementById('appShell').classList.add('hidden');
+        document.getElementById('loginView').classList.remove('hidden');
+      });
+
+      document.getElementById('mobileMenuBtn').addEventListener('click', () => {
+        document.getElementById('sidebar').classList.toggle('hidden');
+      });
+
+      document.querySelectorAll('.nav-item').forEach((btn) => {
+        btn.addEventListener('click', () => switchPage(btn.dataset.page));
+      });
+
+      document.getElementById('playPauseBtn').addEventListener('click', () => {
+        simState.running = !simState.running;
+        document.getElementById('playPauseBtn').textContent = simState.running ? 'Pause' : 'Start';
+        restartTimer();
+      });
+
+      document.getElementById('stepBtn').addEventListener('click', () => {
+        if (simState.running) {
+          simState.running = false;
+          document.getElementById('playPauseBtn').textContent = 'Start';
+          restartTimer();
+        }
+        stepSimulation();
+      });
+
+      document.getElementById('resetBtn').addEventListener('click', () => {
+        initSimulation();
+        renderAll();
+        showToast('Simulation reset');
+      });
+
+      document.getElementById('globalScenario').addEventListener('change', (e) => {
+        simState.scenario = e.target.value;
+        addEvent(`Switched scenario to ${SCENARIOS[simState.scenario].label}`);
+        renderAll();
+      });
+
+      document.getElementById('globalController').addEventListener('change', (e) => {
+        simState.controllerMode = e.target.value;
+        addEvent(`Controller set to ${e.target.value === 'adaptive' ? 'Smart Signals' : 'Fixed Timer'}`);
+        renderAll();
+      });
+
+      document.getElementById('simSpeed').addEventListener('change', (e) => {
+        simState.speed = Number(e.target.value) || 1;
+        restartTimer();
+      });
+
+      document.getElementById('signalJunctionSelect').addEventListener('change', (e) => {
+        simState.selectedJunction = e.target.value;
+        renderAll();
+      });
+
+      document.getElementById('requestSwitchBtn').addEventListener('click', () => {
+        const j = simState.junctions[document.getElementById('signalJunctionSelect').value];
+        j.manualRequest = true;
+        showToast(`Safe switch queued for ${j.id} (waits for 15 s min green)`);
+      });
+
+      document.getElementById('cmpArrival').addEventListener('input', (e) => {
+        document.getElementById('cmpArrivalVal').textContent = `${Number(e.target.value).toFixed(1)}×`;
+      });
+      document.getElementById('cmpCapacity').addEventListener('input', (e) => {
+        document.getElementById('cmpCapacityVal').textContent = Number(e.target.value).toFixed(2);
+      });
+      document.getElementById('runComparisonBtn').addEventListener('click', executeComparison);
+      document.querySelectorAll('.preset-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          document.getElementById('cmpScenario').value = btn.dataset.preset;
+          document.getElementById('cmpSeed').value = 42;
+          document.getElementById('cmpDuration').value = 600;
+          executeComparison();
+        });
+      });
+
+      document.getElementById('dispatchAmbBtn').addEventListener('click', async () => {
+        const vehicle = document.getElementById('ambVehicle').value;
+        const start = document.getElementById('ambStart').value;
+        const end = document.getElementById('ambEnd').value;
+        const queues = {};
+        JUNCTION_IDS.forEach((id) => { queues[id] = simState.junctions[id].queueNS + simState.junctions[id].queueEW; });
+
+        let route = null;
+        if (CAN_USE_API) {
+          try {
+            const r = await fetch('/api/route', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ vehicle, start, end, queues })
+            });
+            if (r.ok) route = await r.json();
+          } catch {}
+        }
+        if (!route) route = runLocalDijkstra(start, end);
+
+        simState.ambulance = {
+          vehicle, path: route.path, stepIdx: 0, progressSec: 0, active: route.path.length > 1
+        };
+        document.getElementById('ambSummaryBox').innerHTML = `
+          <div class="font-bold text-[#0369A1]">${vehicle} Route Active</div>
+          <div class="font-mono text-ink">${route.path.join(' → ')}</div>
+          <div class="text-slateink">Distance: <strong>${route.distanceMeters} m</strong> · ETA: <strong>${route.estimatedSeconds} s</strong> (est. ${route.timeSavedSeconds} s saved)</div>
+        `;
+        addEvent(`Dispatched ${vehicle}: ${route.path.join(' → ')}`, 'info');
+        renderAll();
+      });
+
+      document.getElementById('clearAmbBtn').addEventListener('click', () => {
+        simState.ambulance = null;
+        document.getElementById('ambSummaryBox').innerHTML = `
+          <div class="font-bold text-[#0369A1]">No active emergency route</div>
+          <p class="text-slateink">Select a start and destination to calculate the shortest congestion-weighted path via Dijkstra's algorithm.</p>
+        `;
+        renderAll();
+      });
+
+      document.getElementById('incidentForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const junction = document.getElementById('incJunction').value;
+        const type = document.getElementById('incType').value;
+        const severity = document.getElementById('incSeverity').value;
+        const notes = document.getElementById('incNotes').value.trim() || `${type} at ${junction}`;
+
+        const base = { Accident: 0.45, Breakdown: 0.65, Roadworks: 0.60, Closure: 0.15 }[type] || 0.60;
+        const adj = severity === 'High' ? -0.15 : severity === 'Low' ? 0.10 : 0;
+        const capacityFactor = Math.max(0.15, Math.min(0.90, Number((base + adj).toFixed(2))));
+
+        const newInc = {
+          id: `INC-${Math.floor(100 + Math.random() * 900)}`,
+          junction, type, severity, status: 'Active', capacityFactor, notes, autoGenerated: false
+        };
+        simState.incidents.unshift(newInc);
+        addEvent(`Incident logged at ${junction}: ${type} (${severity})`, 'warn');
+        document.getElementById('incNotes').value = '';
+
+        if (CAN_USE_API) {
+          try {
+            await fetch('/api/incidents', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ junction, type, severity, notes })
+            });
+          } catch {}
+        }
+        renderAll();
+        showToast(`Incident logged at ${junction}`);
+      });
+
+      document.querySelectorAll('.inc-filter').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          simState.incidentFilter = btn.dataset.incFilter;
+          document.querySelectorAll('.inc-filter').forEach((b) => {
+            const active = b.dataset.incFilter === simState.incidentFilter;
+            b.className = active
+              ? 'inc-filter px-3 py-1 rounded-lg bg-[#0F766E] text-white text-xs font-semibold'
+              : 'inc-filter px-3 py-1 rounded-lg bg-[#F1EFE9] text-ink text-xs font-semibold';
+          });
+          renderIncidentsPage();
+        });
+      });
+
+      document.getElementById('chartMetricSelect').addEventListener('change', renderChartsPage);
+      document.getElementById('idleBurnInput').addEventListener('input', renderChartsPage);
+      document.getElementById('co2PerLitreInput').addEventListener('input', renderChartsPage);
+
+      document.getElementById('exportCsvBtn').addEventListener('click', async () => {
+        let csvText = '';
+        if (CAN_USE_API) {
+          try {
+            const r = await fetch('/api/export', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ samples: simState.samples })
+            });
+            if (r.ok) csvText = await r.text();
+          } catch {}
+        }
+        if (!csvText) {
+          const header = 'time_s,total_queue,avg_wait_s,avg_speed_kmh,throughput,congestion_level,active_incidents';
+          const rows = simState.samples.map((s) =>
+            `${s.timeSec},${s.totalQueue},${s.avgWait},${s.avgSpeed},${s.throughput},"${s.congestion}",${s.activeIncidents}`
+          );
+          csvText = [header, ...rows].join('\n');
+        }
+        const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `traffic-ai-report-seed-${simState.seed}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        showToast('CSV report downloaded');
+      });
+
+      // Pause simulation when tab is hidden to avoid step backlog (NFR3)
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) clearInterval(simInterval);
+        else restartTimer();
+      });
+    });
+  </script>
+</body>
+</html>
